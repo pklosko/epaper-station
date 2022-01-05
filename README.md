@@ -55,7 +55,6 @@ kill -10 <PID> ; cat /var/log/syslog | tail -4
 if running from rc.local
 
 *SIGUSR2
-```
 - HTTP GET images for all known clients (stored in clients.json) and show image version/size
 ```
 kill -12 <PID>
