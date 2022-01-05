@@ -8,6 +8,7 @@ Modifiation:
 - Client/ePaper send info to the server (http GET, on Checkin request) 
 - All *.bmp stored in /tmp dir
 - SIGUSR signals, see below
+- Daemonize after start
 
 ## Install
 ```
@@ -21,15 +22,16 @@ edit url & CONSTS in IoTrequests.py
 
 ## Run
 ```
-cd /home/pi/epaper-station/; /usr/bin/python3 ./station.py&
-
-or from rc.local
-
+cd /home/pi/epaper-station/; python3 ./station.py
+```
+or from rc.local as a pi user 
+```
 sudo vi /etc/rc.local
 
-su - pi -c 'cd /home/pi/epaper-station/; /usr/bin/python3 ./station.py&'
+su - pi -c 'cd /home/pi/epaper-station/; /usr/bin/python3 station.py'
 ```
-When running from rc.local all messages are logged to /var/log/daemon.log
+
+All messages are logged to /var/log/daemon.log & /var/log/syslog when running from rc.local
 
 
 ## Usage
@@ -39,16 +41,32 @@ When running from rc.local all messages are logged to /var/log/daemon.log
 - <DISPLAY_MAC>.png is now HTTP GETed on Checkin request sent by client (ePaper)
 
 ## SIGUSR Signals - Info & Action
-If running as a daemon
+*SIGUSR1
 - show/log image version [name of /tmp/*.bmp] and image size that will be sent to the client on Checkin request
-```
-kill -SIGUSR1 <PID>
-```
+- check if bmp image exists 
 
-- HTTP GET images for all known clients (stored in clients.json)
 ```
-kill -SIGUSR2 <PID>
+kill -10 <PID>
 ```
+or
+```
+kill -10 <PID> ; cat /var/log/syslog | tail -4
+```
+if running from rc.local
+
+*SIGUSR2
+```
+- HTTP GET images for all known clients (stored in clients.json) and show image version/size
+```
+kill -12 <PID>
+```
+or
+```
+kill -12 <PID> ; cat /var/log/syslog | tail -3
+```
+if running from rc.local
+
 
 ## cc2531, RPi, Flash HowTo
 [https://www.klosko.net/tools/ePaper/howto.txt]
+
