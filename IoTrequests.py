@@ -7,10 +7,13 @@ import threading
 from PIL import Image
 from io import BytesIO
 
+PUSH_URL = "YOUR_URL"
+GET_URL = "YOUR_URL"
+USER_AGENT = "Python/ePaper-"
 IMAGE_WORKDIR = "/tmp/"
 CLIENTS_JSON = "clients.json"
-UPD_FROM = -1 #5:45
-UPD_TO = 2500  #25:00
+UPD_FROM = 600 #6:00
+UPD_TO = 2200  #22:00
 UPD_INTERVAL = 1680 #28 minutes
 
 def IoTprepareImage(localFileName):
@@ -33,10 +36,10 @@ def IoTpushInfo(ci, pi, client):
   try:
     currHM = int(time.strftime("%H%I"))
     client_str = str(bytes(client).hex())
-    url = "http://YOUR_URL/?t=" + str(ci.temperature) + "&ub=" + str(ci.batteryMv / 1000)
+    url = PUSH_URL + "?t=" + str(ci.temperature) + "&ub=" + str(ci.batteryMv / 1000)
     print("Push info ", url)
     headers = {}
-    headers['User-Agent']  = "IoT.ePap-80-" + client_str
+    headers['User-Agent']  = USER_AGENT + client_str
     headers['Device-Info'] = "Device:Samsung/SoluM4.2" +  \
                              ";MAC:" + client_str + \
                              ";FW:" + str(ci.swVer) + \
@@ -87,7 +90,7 @@ def IoTstoreClientsImageInfo(clImgInfo, jsonFile):
 def IoTgetImage(client_str, jsonFile, showInfo = False):
   currHour = int(time.strftime("%H"))
   localFileName = client_str + ".png"
-  url = "https://YOUR_URL/?nocache=true&mac=" + client_str + "&ts=" + str(int(time.time())) + "&ua=station.py"
+  url = GET_URL + "?nocache=true&mac=" + client_str + "&ts=" + str(int(time.time())) + "&ua=station.py"
   try:
     print("HTTP GET image data ", url)
     urllib.request.urlretrieve(url, localFileName)
