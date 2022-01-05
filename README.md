@@ -14,9 +14,9 @@ Modifiation:
 apt install python3-serial python3-pycryptodome python3-pil
 ```
 
-## Patch & Config
+## Config
 ```
-patch station.py station.py.patch1 edit url & tFrom & tTo variables in IoTrequests.py
+edit url & CONSTS in IoTrequests.py
 ```
 
 ## Run
