@@ -22,7 +22,15 @@ edit url & CONSTS in IoTrequests.py
 ## Run
 ```
 cd /home/pi/epaper-station/; /usr/bin/python3 ./station.py&
+
+or from rc.local
+
+sudo vi /etc/rc.local
+
+su - pi -c 'cd /home/pi/epaper-station/; /usr/bin/python3 ./station.py&'
 ```
+When running from rc.local all messages are logged to /var/log/daemon.log
+
 
 ## Usage
 - to pair a display, it has to be really really close (touching the adapter with left edge) - when the display "checks in", it will check the presence of <DISPLAY_MAC>.png in current dir, convert it to bmp and send to display - 
@@ -32,7 +40,7 @@ cd /home/pi/epaper-station/; /usr/bin/python3 ./station.py&
 
 ## SIGUSR Signals - Info & Action
 If running as a daemon
-- show image version [name of /tmp/*.bmp] and image size that will be sent to the client on Checkin request
+- show/log image version [name of /tmp/*.bmp] and image size that will be sent to the client on Checkin request
 ```
 kill -SIGUSR1 <PID>
 ```
