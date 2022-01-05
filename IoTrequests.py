@@ -1,8 +1,10 @@
 import urllib.request
 import time
 import os
+import sys
 import json
 import threading
+import logging
 
 from PIL import Image
 from io import BytesIO
@@ -10,11 +12,27 @@ from io import BytesIO
 PUSH_URL = "YOUR_URL"
 GET_URL = "YOUR_URL"
 USER_AGENT = "Python/ePaper-"
+
 IMAGE_WORKDIR = "/tmp/"
 CLIENTS_JSON = "clients.json"
+
+INTERVAL = 45  #minutes
 UPD_FROM = 600 #6:00
 UPD_TO = 2200  #22:00
-UPD_INTERVAL = 1680 #28 minutes
+
+UPD_INTERVAL = (INTERVAL - 2) * 60 #2 minutes before Checkin
+
+logging.basicConfig(format='%(asctime)s %(message)s')
+logger = logging.getLogger(__name__)
+
+dsn = 0
+
+def print(*args):
+  msg = ""
+  for arg in args:
+    msg += str(arg) + " "
+  logger.warning(msg)
+
 
 def IoTprepareImage(localFileName):
   pf = open(localFileName,mode='rb')
@@ -44,14 +62,14 @@ def IoTpushInfo(ci, pi, client):
                              ";MAC:" + client_str + \
                              ";FW:" + str(ci.swVer) + \
                              ";SW:station.py@" + os.uname().nodename + "[" + str(os.getpid()) + "]" + \
-                             ";Interval:30" + \
+                             ";Interval:" + str(INTERVAL) + \
                              ";Conn:WiFi" + \
                              ";imgUpdateVer:" + str(pi.imgUpdateVer) + \
                              ";RSSI:" + str(ci.lastPacketRSSI)
     req = urllib.request.Request(url, headers = headers)
     resp = urllib.request.urlopen(req)
-    print(headers['User-Agent'])
-    print(headers['Device-Info'])
+#    print(headers['User-Agent'])
+#    print(headers['Device-Info'])
     respData = resp.read()
     print(respData)
 

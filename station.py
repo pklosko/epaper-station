@@ -12,6 +12,7 @@ import IoTrequests
 import threading
 import signal
 import json
+import sys
 
 masterkey = bytearray.fromhex("D306D9348E29E5E358BF2934812002C1")
 
@@ -21,7 +22,8 @@ PANID = [ 0x47, 0x44 ]
 CHANNEL = 11
 IMAGE_WORKDIR = "/tmp/"
 CLIENTS_JSON = "clients.json"
-PID=os.getpid()
+INTERVAL = 45
+UPD_INTERVAL_MS = INTERVAL * 60000
 
 PKT_ASSOC_REQ			= (0xF0)
 PKT_ASSOC_RESP			= (0xF1)
@@ -147,7 +149,7 @@ def process_assoc(pkt, data):
     print(ti)
 
     ai = AssocInfo(
-	    checkinDelay=1800000, #check each 900sec 
+	    checkinDelay=UPD_INTERVAL_MS, #check each 40minutes 
 	    retryDelay=1000, #retry delay 1000ms
 	    failedCheckinsTillBlank=2,
 	    failedCheckinsTillDissoc=0,
@@ -168,22 +170,6 @@ def prepare_image(client):
     except Exception as e :
       print("Unable to get Image info for client", client)
       return
-
-#    filename = str(bytes(client).hex()) + ".png"
-#    print("Reading image file:", filename)
-#    pf = open(filename,mode='rb')
-#    imgData = pf.read()
-#    imgVer = binascii.crc32(imgData)
-#    pf.close()
-#    file_conv = IMAGE_WORKDIR + str(imgVer) + ".bmp"
-#    if not os.path.isfile(file_conv):
-#        pngdata = BytesIO(imgData)
-#
-#        im = Image.open(pngdata)
-#        im_L = im.convert("1")
-#        im_L.save(file_conv)
-#
-#    imgLen = os.path.getsize(file_conv)
 
     return (imgVer, imgLen)
 
@@ -228,15 +214,22 @@ def process_checkin(pkt, data):
     thr.start()
 
 def process_download(pkt, data):
+    try:
+      isDaemon = (os.getpgrp() != os.tcgetpgrp(sys.stdout.fileno()))
+    except Exception as e :
+      isDaemon = True
+
     cri = ChunkReqInfo._make(struct.unpack('<QLBB6s',data))
-    print(cri)
+    if not isDaemon:
+      print(cri)
 
     ci = ChunkInfo(
         offset = cri.offset,
         osUpdatePlz = 0,
         rfu = 0,
     )
-    print(ci)
+    if not isDaemon:
+      print(ci)
 
     try:
         fdata = get_image_data(cri.versionRequested, cri.offset, cri.len)
@@ -247,7 +240,8 @@ def process_download(pkt, data):
 
     outpkt = bytearray([ PKT_CHUNK_RESP ]) + bytearray(struct.pack('<LBB', *ci)) + bytearray(fdata)
 
-    print("sending chunk", len(outpkt), outpkt[:10].hex() ,"...")
+    if not isDaemon:
+      print("sending chunk", len(outpkt), outpkt[:10].hex() ,"...")
 
     send_data(pkt['src_add'], outpkt)
 
@@ -305,12 +299,19 @@ def process_pkt(pkt):
 
 
 def sigusr1_handler(signum, frame):
-  print("SIGUSR1 at ", time.time())
-  print("imgVer ", str(imgVer))
-  print("imgLen ", str(imgLen))
+  print("SIGUSR1(", signum, ") at ", time.time())
+  if os.path.isfile(CLIENTS_JSON):
+    clImgInfo = IoTrequests.IoTgetClientsImageInfo(CLIENTS_JSON, "")
+    print("clImgInfo", clImgInfo)
+    for clStr in clImgInfo['clients']:
+      imgFile = IMAGE_WORKDIR + str(clImgInfo['clients'][clStr]['imgVer']) + ".bmp"
+      if not os.path.isfile(imgFile):
+        print("Error : File not found", imgFile)
+      else:
+        print("OK :", imgFile, " found")
 
 def sigusr2_handler(signum, frame):
-  print("SIGUSR2 at ", time.time())
+  print("SIGUSR2(", signum, ") at ", time.time())
   if os.path.isfile(CLIENTS_JSON):
     clImgInfo = IoTrequests.IoTgetClientsImageInfo(CLIENTS_JSON, "")
     print("clImgInfo", clImgInfo)
@@ -319,10 +320,22 @@ def sigusr2_handler(signum, frame):
   else:
     print("CLIENTS_JSON not exits", CLIENTS_JSON)
 
+def create_daemon():
+  try:
+    pid = os.fork()
+    print("Fork : " + str(pid))
+    if pid > 0:
+      sys.exit(0)
+
+  except OSError as e:
+    print("Unable to fork")
+    sys.exit(1)
+
 signal.signal(signal.SIGUSR1, sigusr1_handler)
 signal.signal(signal.SIGUSR2, sigusr2_handler)
 
+create_daemon()
 timaccop.init(PORT, PANID, CHANNEL, EXTENDED_ADDRESS, process_pkt)
-print("Station started :", PID)
-
+PID=os.getpid()
+print("Station started :", PID )
 timaccop.run()
