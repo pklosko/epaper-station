@@ -16,11 +16,11 @@ USER_AGENT = "Python/ePaper-"
 IMAGE_WORKDIR = "/tmp/"
 CLIENTS_JSON = "clients.json"
 
-INTERVAL = 45  #minutes
-UPD_FROM = 600 #6:00
-UPD_TO = 2200  #22:00
+INTERVAL = 45  #default
+#UPD_FROM = 600 #6:00
+#UPD_TO = 2200  #22:00
 
-UPD_INTERVAL = (INTERVAL - 2) * 60 #2 minutes before Checkin
+#UPD_INTERVAL = (INTERVAL - 2) * 60 #2 minutes before Checkin
 
 logging.basicConfig(format='%(asctime)s %(message)s')
 logger = logging.getLogger(__name__)
@@ -52,17 +52,18 @@ def IoTprepareImage(localFileName):
 
 def IoTpushInfo(ci, pi, client):
   try:
-    currHM = int(time.strftime("%H%I"))
     client_str = str(bytes(client).hex())
     url = PUSH_URL + "?t=" + str(ci.temperature) + "&ub=" + str(ci.batteryMv / 1000)
     print("Push info ", url)
     headers = {}
     headers['User-Agent']  = USER_AGENT + client_str
+    headers['Connection']  = "close"
     headers['Device-Info'] = "Device:Samsung/SoluM4.2" +  \
                              ";MAC:" + client_str + \
                              ";FW:" + str(ci.swVer) + \
                              ";SW:station.py@" + os.uname().nodename + "[" + str(os.getpid()) + "]" + \
-                             ";Interval:" + str(INTERVAL) + \
+                             ";Accept:json" + \
+                             ";Interval:" + str(int(pi.nextCheckinDelay/60000)) + \
                              ";Conn:WiFi" + \
                              ";imgUpdateVer:" + str(pi.imgUpdateVer) + \
                              ";RSSI:" + str(ci.lastPacketRSSI)
@@ -70,17 +71,19 @@ def IoTpushInfo(ci, pi, client):
     resp = urllib.request.urlopen(req)
 #    print(headers['User-Agent'])
 #    print(headers['Device-Info'])
-    respData = resp.read()
+    respData = json.loads(resp.read())
     print(respData)
-
-    if (currHM > UPD_FROM and currHM < UPD_TO):
-      try:
-        print("Thread Sleep for ", UPD_INTERVAL)
-        tim_thr = threading.Timer(UPD_INTERVAL, IoTgetImage, args=(client_str, CLIENTS_JSON, ))
-        tim_thr.start()
-      except Exception as e:
-        print("Unable to Get Image", client)
-        print(str(e))
+    if 'CMD' in respData:
+      if respData['CMD'] == 'SET-INTERVAL':
+        print("Set nextCheckinDelay to " + str(respData['PARAM']) + " minutes")
+        IoTupdateClientsImageInfo(client_str, CLIENTS_JSON, 'imgInt', respData['PARAM'])
+    try:
+      print("Thread Sleep for ", str(int(pi.nextCheckinDelay/60000)), "minutes")
+      tim_thr = threading.Timer((int(pi.nextCheckinDelay/1000)-120), IoTgetImage, args=(client_str, CLIENTS_JSON, )) #2 min before next Checkin packet
+      tim_thr.start()
+    except Exception as e:
+      print("Unable to Get Image", client)
+      print(str(e))
 
   except Exception as e:
     print("Unable to push Info for client", client)
@@ -93,9 +96,14 @@ def IoTgetClientsImageInfo(jsonFile, client_str):
     clImgInfo = json.load(f)
     f.close();
   except Exception as e:
-    data = '{"clients":{"' + client_str + '":{"imgVer":0,"imgLen":0}}}'
+    data = '{"clients":{"' + client_str + '":{"imgVer":0,"imgLen":0,"imgInt":' + INTERVAL + '}}}'
     clImgInfo = json.loads(data)
   return clImgInfo
+
+def IoTupdateClientsImageInfo(client_str, jsonFile, elem, value):
+  clImgInfo = IoTgetClientsImageInfo(jsonFile, client_str)
+  clImgInfo['clients'][client_str][elem] = value
+  IoTstoreClientsImageInfo(clImgInfo, jsonFile)
 
 
 def IoTstoreClientsImageInfo(clImgInfo, jsonFile):
@@ -106,7 +114,6 @@ def IoTstoreClientsImageInfo(clImgInfo, jsonFile):
 
 
 def IoTgetImage(client_str, jsonFile, showInfo = False):
-  currHour = int(time.strftime("%H"))
   localFileName = client_str + ".png"
   url = GET_URL + "?nocache=true&mac=" + client_str + "&ts=" + str(int(time.time())) + "&ua=station.py"
   try:

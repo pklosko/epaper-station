@@ -9,6 +9,9 @@ Modifiation:
 - All *.bmp stored in /tmp dir
 - SIGUSR signals, see below
 - Daemonize after start
+- Set epaper "nextCheckinDelay" via remote server - IoTpushInfo()
+- Do not refresh after 22:00 for 8 hours to save power/display
+
 
 ## Install
 ```
@@ -68,4 +71,8 @@ if running from rc.local
 
 ## cc2531, RPi, Flash HowTo
 [https://www.klosko.net/tools/ePaper/howto.txt]
+
+## Possible improvements
+- Add update schedule scheme
+
 

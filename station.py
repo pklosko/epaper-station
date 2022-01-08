@@ -22,8 +22,11 @@ PANID = [ 0x47, 0x44 ]
 CHANNEL = 11
 IMAGE_WORKDIR = "/tmp/"
 CLIENTS_JSON = "clients.json"
-INTERVAL = 45
-UPD_INTERVAL_MS = INTERVAL * 60000
+INTERVAL = 45                             # minutes
+UPD_INTERVAL_MS = INTERVAL * 60000        # mseconds
+SLEEP_TIME = 2100                         # last update at 21:00 h / everything above 2400 disable this feature
+SLEEP_INTERVAL = 9                        # 9 hours after SLEEP_TIME 
+SLEEP_DELAY_MS = SLEEP_INTERVAL * 3600000 # mseconds
 
 PKT_ASSOC_REQ			= (0xF0)
 PKT_ASSOC_RESP			= (0xF1)
@@ -34,6 +37,7 @@ PKT_CHUNK_RESP			= (0xF5)
 
 imgVer = 0
 imgLen = 0
+imgInt = 0
 client_str = ""
 
 TagInfo = namedtuple('TagInfo', """
@@ -167,15 +171,19 @@ def prepare_image(client):
       clImgInfo = IoTrequests.IoTgetClientsImageInfo(CLIENTS_JSON, client_str)
       imgVer = int(clImgInfo['clients'][client_str]['imgVer'])
       imgLen = int(clImgInfo['clients'][client_str]['imgLen'])
+      imgInt = int(clImgInfo['clients'][client_str]['imgInt'])
     except Exception as e :
       print("Unable to get Image info for client", client)
-      return
+      imgVer = 0
+      imgLen = 0
+      imgInt = INTERVAL
 
-    return (imgVer, imgLen)
+    return (imgVer, imgLen, imgInt)
 
 def get_image_data(imgVer, offset, length):
     filename = IMAGE_WORKDIR + str(imgVer) + ".bmp"
-    print("Reading image file:", filename)
+    if notDaemon() or offset == 0:
+      print("Reading image file:", filename)
 
     f = open(filename,mode='rb')
     f.seek(offset)
@@ -185,23 +193,32 @@ def get_image_data(imgVer, offset, length):
     return image_data
 
 def process_checkin(pkt, data):
+    currHM = int(time.strftime("%H%I"))
+    updIntervalMS = 900000               # default 15 minutes
+
     ci = CheckinInfo._make(struct.unpack('<QHHBBB6s',data))
     print(ci)
 
     try:
-        global imgVer, imgLen
-        imgVer, imgLen = prepare_image(pkt['src_add'])
+        global imgVer, imgLen, imgInt
+        imgVer, imgLen, imgInt = prepare_image(pkt['src_add'])
     except Exception as e :
         print("Unable to prepare image data for client", pkt['src_add'])
         print(e)
         return
+
+    if (imgInt > 0):
+      updIntervalMS = imgInt * 60000
+
+    if (currHM > SLEEP_TIME):
+      updIntervalMS = SLEEP_DELAY_MS
 
     pi = PendingInfo(
         imgUpdateVer = imgVer,
         imgUpdateSize = imgLen,
         osUpdateVer = ci.swVer,
         osUpdateSize = 0,
-        nextCheckinDelay = 0,
+        nextCheckinDelay = updIntervalMS,
         rfu=bytearray(4*[0])
     )
     print(pi)
@@ -214,13 +231,8 @@ def process_checkin(pkt, data):
     thr.start()
 
 def process_download(pkt, data):
-    try:
-      isDaemon = (os.getpgrp() != os.tcgetpgrp(sys.stdout.fileno()))
-    except Exception as e :
-      isDaemon = True
-
     cri = ChunkReqInfo._make(struct.unpack('<QLBB6s',data))
-    if not isDaemon:
+    if notDaemon():
       print(cri)
 
     ci = ChunkInfo(
@@ -228,7 +240,7 @@ def process_download(pkt, data):
         osUpdatePlz = 0,
         rfu = 0,
     )
-    if not isDaemon:
+    if notDaemon():
       print(ci)
 
     try:
@@ -240,7 +252,7 @@ def process_download(pkt, data):
 
     outpkt = bytearray([ PKT_CHUNK_RESP ]) + bytearray(struct.pack('<LBB', *ci)) + bytearray(fdata)
 
-    if not isDaemon:
+    if notDaemon():
       print("sending chunk", len(outpkt), outpkt[:10].hex() ,"...")
 
     send_data(pkt['src_add'], outpkt)
@@ -292,10 +304,18 @@ def process_pkt(pkt):
         print("Got checkin request")
         process_checkin(pkt, plaintext[1:])
     elif typ == PKT_CHUNK_REQ:
-        print("Got chunk request")
+        if notDaemon():
+          print("Got chunk request")
         process_download(pkt, plaintext[1:])
     else:
         print("Unknown request", typ)
+
+def notDaemon():
+  try:
+    notD = (os.getpgrp() == os.tcgetpgrp(sys.stdout.fileno()))
+  except Exception as e :
+    notD = True
+  return notD
 
 
 def sigusr1_handler(signum, frame):
