@@ -15,12 +15,8 @@ USER_AGENT = "Python/ePaper-"
 
 IMAGE_WORKDIR = "/tmp/"
 CLIENTS_JSON = "clients.json"
-
-INTERVAL = 45  #default
-#UPD_FROM = 600 #6:00
-#UPD_TO = 2200  #22:00
-
-#UPD_INTERVAL = (INTERVAL - 2) * 60 #2 minutes before Checkin
+INTERVAL = 45     #default
+MS_S_COEF = 1055  #ms to s coeficient + epaper/python different timing correction
 
 logging.basicConfig(format='%(asctime)s %(message)s')
 logger = logging.getLogger(__name__)
@@ -78,8 +74,8 @@ def IoTpushInfo(ci, pi, client):
         print("Set nextCheckinDelay to " + str(respData['PARAM']) + " minutes")
         IoTupdateClientsImageInfo(client_str, CLIENTS_JSON, 'imgInt', respData['PARAM'])
     try:
-      print("Thread Sleep for ", str(int(pi.nextCheckinDelay/60000)), "minutes")
-      tim_thr = threading.Timer((int(pi.nextCheckinDelay/1000)-120), IoTgetImage, args=(client_str, CLIENTS_JSON, )) #2 min before next Checkin packet
+      print("Thread Sleep for about ", str(int(pi.nextCheckinDelay/60000)), "minutes")
+      tim_thr = threading.Timer((int(pi.nextCheckinDelay/MS_S_COEF)), IoTgetImage, args=(client_str, CLIENTS_JSON, )) #2 min before next Checkin packet
       tim_thr.start()
     except Exception as e:
       print("Unable to Get Image", client)

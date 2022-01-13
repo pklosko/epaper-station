@@ -11,6 +11,7 @@ Modifiation:
 - Daemonize after start
 - Set epaper "nextCheckinDelay" via remote server - IoTpushInfo()
 - Do not refresh after 22:00 for 8 hours to save power/display
+- add python interpreter directry to tohe script
 
 
 ## Install
@@ -25,13 +26,13 @@ edit url & CONSTS in IoTrequests.py
 
 ## Run
 ```
-cd /home/pi/epaper-station/; python3 ./station.py
+cd /home/pi/epaper-station/; ./station.py
 ```
 or from rc.local as a pi user 
 ```
 sudo vi /etc/rc.local
 
-su - pi -c 'cd /home/pi/epaper-station/; /usr/bin/python3 station.py'
+su - pi -c '/home/pi/epaper-station/station.py'
 ```
 
 All messages are logged to /var/log/daemon.log & /var/log/syslog when running from rc.local

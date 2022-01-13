@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import timaccop
 from Cryptodome.Cipher import AES
 from collections import namedtuple
@@ -21,6 +23,7 @@ EXTENDED_ADDRESS = [ 0x00, 0x12, 0x4B, 0x00, 0x14, 0xD9, 0x49, 0x35 ]
 PANID = [ 0x47, 0x44 ]
 CHANNEL = 11
 IMAGE_WORKDIR = "/tmp/"
+BASE_DIR = "/home/pi/epaper-station"
 CLIENTS_JSON = "clients.json"
 INTERVAL = 45                             # minutes
 UPD_INTERVAL_MS = INTERVAL * 60000        # mseconds
@@ -30,7 +33,7 @@ SLEEP_DELAY_MS = SLEEP_INTERVAL * 3600000 # mseconds
 
 PKT_ASSOC_REQ			= (0xF0)
 PKT_ASSOC_RESP			= (0xF1)
-PKT_CHECKIN				= (0xF2)
+PKT_CHECKIN			= (0xF2)
 PKT_CHECKOUT			= (0xF3)
 PKT_CHUNK_REQ			= (0xF4)
 PKT_CHUNK_RESP			= (0xF5)
@@ -338,7 +341,8 @@ def sigusr2_handler(signum, frame):
     for i in clImgInfo['clients']:
       IoTrequests.IoTgetImage(i, CLIENTS_JSON, True)
   else:
-    print("CLIENTS_JSON not exits", CLIENTS_JSON)
+    cwd = os.getcwd()
+    print("CLIENTS_JSON not exits", cwd, CLIENTS_JSON)
 
 def create_daemon():
   try:
@@ -354,6 +358,7 @@ def create_daemon():
 signal.signal(signal.SIGUSR1, sigusr1_handler)
 signal.signal(signal.SIGUSR2, sigusr2_handler)
 
+os.chdir(BASE_DIR)
 create_daemon()
 timaccop.init(PORT, PANID, CHANNEL, EXTENDED_ADDRESS, process_pkt)
 PID=os.getpid()
