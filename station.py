@@ -6,6 +6,7 @@ from collections import namedtuple
 import struct
 import os
 import logging
+import logging.handlers
 from PIL import Image
 import binascii
 import time
@@ -23,7 +24,9 @@ EXTENDED_ADDRESS = [ 0x00, 0x12, 0x4B, 0x00, 0x14, 0xD9, 0x49, 0x35 ]
 PANID = [ 0x47, 0x44 ]
 CHANNEL = 11
 IMAGE_WORKDIR = "/tmp/"
-BASE_DIR = "/home/pi/epaper-station"
+BASE_DIR = "/etc/scripts/epaper-station"
+LOG_FILENAME = "/var/log/station.log"     # File name 
+LOG_LEVEL    = logging.INFO               # Could be e.g. "INFO", DEBUG" or "WARNING"
 CLIENTS_JSON = "clients.json"
 INTERVAL = 45                             # minutes
 UPD_INTERVAL_MS = INTERVAL * 60000        # mseconds
@@ -103,6 +106,12 @@ rfu,
 
 logging.basicConfig(format='%(asctime)s %(message)s')
 logger = logging.getLogger(__name__)
+logger.setLevel(LOG_LEVEL)
+handler   = logging.handlers.TimedRotatingFileHandler(LOG_FILENAME, when="midnight", backupCount=3)
+formatter = logging.Formatter('%(asctime)s %(levelname)-8s %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+
 
 dsn = 0
 
@@ -279,6 +288,11 @@ def generate_pkt_header(pkt): #hacky- timaccop cannot provide header data
 
 def process_pkt(pkt):
     hdr = generate_pkt_header(pkt)
+
+    if len(pkt['data']) < 10:
+        print("Received a too short paket")
+        print("data", pkt['data'].hex())
+        return
 
     nonce = bytearray(pkt['data'][-4:])
     nonce.extend(reversed(pkt['src_add']))
