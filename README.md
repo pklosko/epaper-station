@@ -1,5 +1,5 @@
 # epaper-station
-ORIGINAL code by @danielkucera. See https://github.com/danielkucera/epaper-station for more details
+ORIGINAL code by @danielkucera. See https://github.com/danielkucera/epaper-station for more details & fresh updates / bigfixes
 
 Modifiation:
 - <DISPLAY_MAC>.png, is now GET on client request between 6:00 and 22:00 (can be changed in IoTrequests.py)
