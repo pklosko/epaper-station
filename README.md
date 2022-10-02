@@ -18,7 +18,11 @@ Modifiation:
 ```
 apt install python3-serial python3-pycryptodome python3-pil
 ```
-
+on Turris Omnia
+```
+Login > LuCi > System > Software 
+Download and install package: kmod-usb-acm
+```
 ## Config
 ```
 edit url & CONSTS in IoTrequests.py
@@ -33,6 +37,12 @@ or from rc.local as a pi user
 sudo vi /etc/rc.local
 
 su - pi -c '/home/pi/epaper-station/station.py'
+```
+On Turris Omnia
+```
+nano /etc/rc.local
+
+/pathTo/epaper-station/station.py
 ```
 
 All messages are logged to /var/log/daemon.log & /var/log/syslog when running from rc.local
